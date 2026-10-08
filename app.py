@@ -1,175 +1,132 @@
 import streamlit as st
 import itertools
 import pandas as pd
-import numpy as np
+import math
 import plotly.express as px
-from datetime import datetime
 
-# ------------------- Page Config -------------------
-st.set_page_config(
-    page_title="Student Selection Combination System",
-    page_icon="🎓",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="Student Selection System", page_icon="🎓", layout="wide")
+st.title("🎓 Student Selection Combination System - MANUAL ENTRY")
+st.caption("DML Project | Sandip University")
 
-# ------------------- Custom CSS -------------------
-st.markdown("""
-<style>
-.main {background-color: #f8f9ff;}
-.stButton>button {background: linear-gradient(90deg, #6a11cb, #2575fc); color:white; border-radius:10px; height:45px; font-weight:bold;}
-.metric-card {background:white; padding:15px; border-radius:12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);}
-</style>
-""", unsafe_allow_html=True)
-
-st.title("🎓 Student Selection Combination System")
-st.caption("DML Mini Project | Sandip University | Guide: J. Sonawane | Team: V.Poleshwar, S.Nandikeswar Reddy, L.Chandu, P.Yugandhar")
-st.divider()
-
-# ------------------- Load Data -------------------
-@st.cache_data
-def load_default_data():
-    return pd.DataFrame([
-        {"ID": 1, "Name": "V. Poleshwar", "CGPA": 8.5, "Skills": "Python, ML, DBMS", "Attendance": 88, "Projects": 3, "Year": "TY"},
-        {"ID": 2, "Name": "S. Nandikeswar Reddy", "CGPA": 8.2, "Skills": "Java, DBMS, OS", "Year": "TY", "Attendance": 85, "Projects": 2},
-        {"ID": 3, "Name": "L. Chandu", "CGPA": 7.8, "Skills": "Python, Web, React", "Year": "TY", "Attendance": 90, "Projects": 4},
-        {"ID": 4, "Name": "P. Yugandhar", "CGPA": 9.0, "Skills": "ML, AI, Python", "Year": "TY", "Attendance": 92, "Projects": 5},
-        {"ID": 5, "Name": "Rahul Kumar", "CGPA": 7.6, "Skills": "Python, C++, DSA", "Year": "TY", "Attendance": 78, "Projects": 2},
-        {"ID": 6, "Name": "Amit Sharma", "CGPA": 8.0, "Skills": "DBMS, OS, CN", "Year": "TY", "Attendance": 82, "Projects": 3},
-        {"ID": 7, "Name": "Priya Singh", "CGPA": 8.7, "Skills": "Web, Python, UI/UX", "Year": "TY", "Attendance": 91, "Projects": 4},
-        {"ID": 8, "Name": "Rohit Verma", "CGPA": 7.9, "Skills": "Java, Spring", "Year": "TY", "Attendance": 80, "Projects": 2},
-        {"ID": 9, "Name": "Anjali Desai", "CGPA": 8.9, "Skills": "Python, ML, Web", "Year": "TY", "Attendance": 95, "Projects": 5},
-        {"ID": 10, "Name": "Karan Patel", "CGPA": 7.5, "Skills": "C, Python", "Year": "TY", "Attendance": 75, "Projects": 1},
-    ])
-
+# --- Session State for Manual Students ---
 if 'df' not in st.session_state:
-    st.session_state.df = load_default_data()
+    st.session_state.df = pd.DataFrame(columns=["ID", "Name", "CGPA", "Skills", "Attendance", "Projects"])
 
-# Sidebar - Upload
+# --- Sidebar: Add Student Manually ---
 with st.sidebar:
-    st.header("📁 Data Input")
-    uploaded = st.file_uploader("Upload students.csv (optional)", type=['csv'])
-    if uploaded:
-        st.session_state.df = pd.read_csv(uploaded)
-        st.success("CSV Loaded!")
+    st.header("➕ Add Student Manually")
+    with st.form("add_student", clear_on_submit=True):
+        name = st.text_input("Student Name *", placeholder="e.g. Poleshwar")
+        cgpa = st.number_input("CGPA *", 0.0, 10.0, 8.0, 0.1)
+        skills = st.text_input("Skills *", placeholder="e.g. Python, ML")
+        attendance = st.number_input("Attendance %", 0, 100, 85)
+        projects = st.number_input("No. of Projects", 0, 20, 2)
+        submitted = st.form_submit_button("Add Student", use_container_width=True)
 
-    st.header("🎯 Selection Criteria (DML Filtering)")
+        if submitted:
+            if name.strip() == "" or skills.strip() == "":
+                st.error("Name and Skills required!")
+            else:
+                new_id = len(st.session_state.df) + 1
+                new_row = {"ID": new_id, "Name": name.strip(), "CGPA": cgpa, "Skills": skills.strip(), "Attendance": attendance, "Projects": projects}
+                st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([new_row])], ignore_index=True)
+                st.success(f"Added {name}")
+
+    st.divider()
+    if st.button("🗑️ Clear All Students", use_container_width=True):
+        st.session_state.df = pd.DataFrame(columns=["ID", "Name", "CGPA", "Skills", "Attendance", "Projects"])
+        st.rerun()
+
+    st.divider()
+    st.header("🎯 Selection Criteria")
     min_cgpa = st.slider("Min CGPA", 5.0, 10.0, 7.5, 0.1)
     min_att = st.slider("Min Attendance %", 50, 100, 75)
     team_size = st.number_input("Team Size (k for nCk)", 2, 6, 3)
-    skill_req = st.text_input("Required Skill", placeholder="e.g. Python")
+    skill_req = st.text_input("Filter by Skill (optional)", placeholder="e.g. Python")
     top_n = st.slider("Show Top N Teams", 3, 20, 5)
+    generate = st.button("🚀 Generate Combinations", use_container_width=True)
 
-    generate = st.button("🚀 Generate Best Combinations", use_container_width=True)
-
-# Main Tabs
-tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "🧮 Combination Engine", "🏆 Results"])
+# --- Main Tabs ---
+tab1, tab2, tab3 = st.tabs(["📋 My Students", "🧮 Combination Engine", "🏆 Results"])
 
 with tab1:
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Total Students", len(st.session_state.df))
-    col2.metric("Avg CGPA", f"{st.session_state.df['CGPA'].mean():.2f}")
-    col3.metric("Max CGPA", f"{st.session_state.df['CGPA'].max()}")
-    col4.metric("Python Skilled", len(st.session_state.df[st.session_state.df['Skills'].str.contains('Python', case=False)]))
+    df = st.session_state.df
+    if df.empty:
+        st.warning("No students yet. Add students from left sidebar -> Add Student")
+        st.info("Example: Add V.Poleshwar, S.Nandikeswar Reddy, L.Chandu, P.Yugandhar one by one")
+    else:
+        # FIX for pyarrow error - force string types
+        df_display = df.copy()
+        df_display['Skills'] = df_display['Skills'].astype(str)
+        df_display['Name'] = df_display['Name'].astype(str)
 
-    c1, c2 = st.columns(2)
-    with c1:
-        fig = px.histogram(st.session_state.df, x="CGPA", nbins=10, title="CGPA Distribution", color_discrete_sequence=['#6a11cb'])
-        st.plotly_chart(fig, use_container_width=True)
-    with c2:
-        fig2 = px.scatter(st.session_state.df, x="Attendance", y="CGPA", size="Projects", color="Name", title="Attendance vs CGPA vs Projects")
-        st.plotly_chart(fig2, use_container_width=True)
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Added", len(df_display))
+        col2.metric("Avg CGPA", f"{df_display['CGPA'].mean():.2f}" if len(df_display)>0 else "0")
+        col3.metric("Total Combinations Possible", f"{math.comb(len(df_display), team_size) if len(df_display)>=team_size else 0}")
 
-    st.dataframe(st.session_state.df, use_container_width=True)
+        st.dataframe(df_display, use_container_width=True)
+
+        if len(df_display) >= 2:
+            c1, c2 = st.columns(2)
+            with c1:
+                fig = px.bar(df_display, x="Name", y="CGPA", title="CGPA of Manually Added Students", color="CGPA")
+                st.plotly_chart(fig, use_container_width=True)
+            with c2:
+                fig2 = px.scatter(df_display, x="Attendance", y="CGPA", size="Projects", color="Name", hover_name="Name", title="Your Students Graph")
+                st.plotly_chart(fig2, use_container_width=True)
 
 with tab2:
-    st.subheader("How Combination System Works (DML Concept)")
     st.code("""
-    1. FILTERING (Data Preprocessing): eligible = CGPA >= X AND Attendance >= Y AND Skill contains Z
-    2. COMBINATION (nCr): total_combos = n! / (k! * (n-k)!) -> using itertools.combinations
-    3. SCORING (Ranking): Score = (0.5*Avg_CGPA) + (0.3*Avg_Attendance/10) + (0.2*Total_Projects)
-    4. RANKING: Sort teams by Score DESC -> Select Top N
-    """, language="python")
+    MANUAL ENTRY -> FILTER (CGPA/Attendance/Skill) -> nCr COMBINATIONS -> RANKING
+    Score = 0.5*CGPA + 0.3*Attendance/10 + 0.2*Projects
+    """)
 
     if generate:
-        # Step 1: Filtering
-        df = st.session_state.df
-        eligible = df[(df['CGPA'] >= min_cgpa) & (df['Attendance'] >= min_att)]
-        if skill_req:
-            eligible = eligible[eligible['Skills'].str.contains(skill_req, case=False, na=False)]
-
-        eligible_list = eligible.to_dict('records')
-
-        st.session_state['eligible'] = eligible_list
-        st.session_state['eligible_df'] = eligible
-
-        if len(eligible_list) < team_size:
-            st.error(f"❌ Not enough students. Eligible: {len(eligible_list)}, Required: {team_size}")
+        df = st.session_state.df.copy()
+        if df.empty:
+            st.error("Add students first!")
         else:
-            # Step 2: nCr Combinations
-            n = len(eligible_list)
-            k = team_size
-            total_combos = np.math.factorial(n) // (np.math.factorial(k) * np.math.factorial(n-k)) if n>=k else 0
+            df['Skills'] = df['Skills'].fillna("").astype(str)
+            df['Name'] = df['Name'].fillna("").astype(str)
 
-            st.info(f"✅ Eligible: {n} students | Total Combinations {n}C{k} = {total_combos} teams")
+            # Safe filtering (no pyarrow error)
+            eligible = df[(df['CGPA'] >= min_cgpa) & (df['Attendance'] >= min_att)].copy()
+            if skill_req.strip()!= "":
+                skill_lower = skill_req.lower()
+                eligible = eligible[eligible['Skills'].apply(lambda x: skill_lower in str(x).lower())]
 
-            all_combos = list(itertools.combinations(eligible_list, team_size))
+            eligible_list = eligible.to_dict('records')
 
-            # Step 3: Scoring Function (Impressive)
-            ranked = []
-            for combo in all_combos:
-                avg_cgpa = sum(s['CGPA'] for s in combo) / team_size
-                avg_att = sum(s['Attendance'] for s in combo) / team_size
-                total_proj = sum(s['Projects'] for s in combo)
-                skill_diversity = len(set(",".join([s['Skills'] for s in combo]).split(",")))
+            if len(eligible_list) < team_size:
+                st.error(f"Not enough eligible. Found {len(eligible_list)}, need {team_size}")
+            else:
+                n = len(eligible_list)
+                total_combos = math.comb(n, team_size)
+                st.info(f"Eligible: {n} | Total {n}C{team_size} = {total_combos} teams")
 
-                # Weighted Score - DML Concept
-                score = (avg_cgpa * 0.5) + (avg_att/10 * 0.3) + (total_proj * 0.15) + (skill_diversity * 0.05)
+                all_combos = list(itertools.combinations(eligible_list, team_size))
+                ranked = []
+                for combo in all_combos:
+                    avg_cgpa = sum(s['CGPA'] for s in combo) / team_size
+                    avg_att = sum(s['Attendance'] for s in combo) / team_size
+                    total_proj = sum(s['Projects'] for s in combo)
+                    score = (avg_cgpa * 0.5) + (avg_att/10 * 0.3) + (total_proj * 0.2)
+                    ranked.append({"score": round(score, 3), "avg_cgpa": round(avg_cgpa, 2), "avg_att": round(avg_att, 1), "team": combo})
 
-                ranked.append({
-                    "score": round(score, 3),
-                    "avg_cgpa": round(avg_cgpa, 2),
-                    "avg_att": round(avg_att, 1),
-                    "total_proj": total_proj,
-                    "team": combo
-                })
-
-            ranked.sort(key=lambda x: x['score'], reverse=True)
-            st.session_state['ranked'] = ranked
-            st.success(f"Generated {len(ranked)} ranked teams!")
+                ranked.sort(key=lambda x: x['score'], reverse=True)
+                st.session_state['ranked'] = ranked
+                st.success("Done! Go to Results tab")
 
 with tab3:
     if 'ranked' in st.session_state:
-        ranked = st.session_state['ranked']
-        st.subheader(f"🏆 Top {top_n} Optimal Teams")
-
-        for i, data in enumerate(ranked[:top_n], 1):
-            score = data['score']
+        st.subheader(f"Top {top_n} Teams from YOUR Manual Names")
+        for i, data in enumerate(st.session_state['ranked'][:top_n], 1):
             with st.container(border=True):
-                st.markdown(f"### Team #{i} | Score: {score} | Avg CGPA: {data['avg_cgpa']} | Attendance: {data['avg_att']}% | Projects: {data['total_proj']}")
+                st.markdown(f"### Team #{i} | Score {data['score']} | Avg CGPA {data['avg_cgpa']}")
                 cols = st.columns(len(data['team']))
-                for idx, member in enumerate(data['team']):
+                for idx, m in enumerate(data['team']):
                     with cols[idx]:
-                        st.markdown(f"""
-                        **{member['Name']}**
-                        - CGPA: {member['CGPA']}
-                        - {member['Skills']}
-                        - Att: {member['Attendance']}%
-                        """)
-
-        # Export
-        export_data = []
-        for r in ranked[:top_n]:
-            export_data.append({
-                "Team_Score": r['score'],
-                "Avg_CGPA": r['avg_cgpa'],
-                "Members": ", ".join([m['Name'] for m in r['team']]),
-                "CGPAs": ", ".join([str(m['CGPA']) for m in r['team']])
-            })
-        df_export = pd.DataFrame(export_data)
-        st.download_button("📥 Download Top Teams CSV", df_export.to_csv(index=False), "best_teams.csv", "text/csv")
+                        st.write(f"**{m['Name']}**\n\nCGPA: {m['CGPA']}\n\n{m['Skills']}\n\nAtt: {m['Attendance']}%")
     else:
-        st.warning("Click Generate button in sidebar first.")
-
-st.sidebar.divider()
-st.sidebar.caption(f"Deployed on {datetime.now().strftime('%d-%m-%Y')} | DML Project")
+        st.warning("Generate combinations first")
