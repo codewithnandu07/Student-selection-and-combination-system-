@@ -1,28 +1,35 @@
-# 🎓 Student Selection Combination System - DML Project
+# 🎓 Student Selection Combination System - DML
 
-> An intelligent system to generate optimal student teams using Combination Logic (nCr) + Ranking.
+**Sandip University | Data Mining Lab Project**
+**Live App:** https://xbejuglurnzbkuawg7oatg.streamlit.app/
 
-**College:** Sandip University | **Subject:** DML | **Guide:** J. Sonawane
+### Problem
+Manual team selection for projects is time-consuming. This system automates it.
 
-### 🚀 Features
-- Filter by CGPA, Attendance, Skills (Data Preprocessing)
-- Generate all nCk combinations using `itertools.combinations`
-- Weighted Scoring: 50% CGPA + 30% Attendance + 20% Projects
-- Dashboard with Plotly Graphs
-- CSV Upload & Export Top Teams
-- Streamlit + GitHub Ready
+### DML Concepts Used
+1. **Filtering & Preprocessing:** CGPA >= 7.5, Attendance >= 75%, Skills filtering
+2. **Combination Generation (nCr):** `nCr = n! / (k!(n-k)!)` using `itertools.combinations`
+3. **Ranking:** Score = 0.5*CGPA + 0.3*Attendance + 0.2*Projects
 
-### 🧮 Core Algorithm
-`Total Combinations = n! / (k! * (n-k)!)`
+### Features
+- Manual student entry (no CSV needed)
+- Eligible student filtering
+- nCr team generation (e.g. 10C3 = 120 teams)
+- Top N best teams ranking
+- Download results
 
-### 🖥️ Run Locally
-pip install -r requirements.txt
-streamlit run app.py
-# Open http://localhost:8501
+### Libraries
+- streamlit
+- pandas
 
-### 🌐 Deploy on Streamlit Cloud
-1. Push to GitHub
-2. Go to share.streamlit.io -> Deploy app.py
+### How to Use
+1. Add students manually from sidebar (e.g. V.Poleshwar, S.Nandikeswar Reddy, L.Chandu, P.Yugandhar)
+2. Set Criteria: Min CGPA, Attendance, Team Size k
+3. Click Generate Combinations
+4. View Top Teams
 
-### Team
-V.Poleshwar, S.Nandikeswar Reddy, L.Chandu, P.Yugandhar
+### Team Members
+- V. Poleshwar
+- S. Nandikeswar Reddy
+- L. Chandu
+- P. Yugandhar
